@@ -91,7 +91,7 @@ func prettyJson(w http.ResponseWriter, data interface{}) {
 func inferWrapper(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	var args []string
 
-	cmd := exec.Command("./flyinfer", args...)
+	cmd := exec.Command("./flyinfer/flyinfer", args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig: syscall.SIGKILL,
 	}
@@ -110,5 +110,8 @@ func inferWrapper(w http.ResponseWriter, r *http.Request, params httprouter.Para
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	prettyJson(w, jsonResult.String())
+	var v interface{}
+	json.NewDecoder(jsonResult).Decode(&v)
+	prettyJson(w, v)
+
 }
