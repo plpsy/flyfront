@@ -90,7 +90,7 @@ func actionServer(ctx *cli.Context) {
 func RegisterHandler() *httprouter.Router {
 	router := httprouter.New()
 	router.GET("/status", api.Status)
-	router.POST("/inference", api.Inference)
-
+	router.POST("/inference/:channel", api.Inference)
+	router.POST("/weight/:channel", api.WeightLoad)
 	return router
 }

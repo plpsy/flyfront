@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdlib.h>
 #include "cJSON.h"
 #include "flyslice_cnn_api.h"
 
@@ -78,6 +79,8 @@ end:
     return string;
 }
 
+char inferTitle[256];
+
 char *create_json(fly_object* objects, int num)
 {
     char *string = NULL;
@@ -94,7 +97,7 @@ char *create_json(fly_object* objects, int num)
     {
         goto end;
     }
-    cJSON_AddItemToObject(objJson, "detected objects", detectedObjs);
+    cJSON_AddItemToObject(objJson, inferTitle, detectedObjs);
 
     for (index = 0; index < num; ++index)
     {
@@ -174,8 +177,26 @@ end:
     return string;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
+    int channel = 0;
+    if(argc == 2)
+    {
+        channel = atoi(argv[1]);
+        if(channel >=0 && channel < 4)
+        {
+            sprintf(inferTitle, "fpga channel %d dectect objects\n", channel);
+        }
+        else
+        {
+            return -1;
+        }
+    }
+    else
+    {
+        return -2;
+    }
+    
     fly_object objects[16];
     objects[0].box_x0 = 1;
     objects[0].box_x1 = 2;

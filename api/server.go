@@ -39,6 +39,48 @@ func writeErrorResponse(w http.ResponseWriter, errorCode int, errorMsg string) {
 	json.NewEncoder(w).Encode(errorMsg)
 }
 
+func WeightLoad(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+
+	r.ParseMultipartForm(32 << 20)
+	// 根据字段名获取表单文件
+	formFile, _, err := r.FormFile("weight")
+	if err != nil {
+		logrus.Errorf("WeightLoad get form file failed: %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer formFile.Close()
+
+	// 创建保存文件
+	path := "/tmp/weight.bin"
+
+	os.Remove(path)
+
+	destFile, err := os.Create(path)
+	if err != nil {
+		logrus.Errorf("WeightLoad crate file failed: %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer destFile.Close()
+
+	if _, err = formFile.Seek(0, io.SeekStart); err != nil {
+		logrus.Errorf("WeightLoad seek failed: %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// 读取表单文件，写入保存文件
+	_, err = io.Copy(destFile, formFile)
+	if err != nil {
+		logrus.Errorf("WeightLoad copy file failed: %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	weightLoadWrapper(w, r, params)
+}
+
 func Inference(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 
 	r.ParseMultipartForm(32 << 20)
@@ -91,6 +133,8 @@ func prettyJson(w http.ResponseWriter, data interface{}) {
 func inferWrapper(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	var args []string
 
+	args = append(args, params.ByName("channel"))
+
 	cmd := exec.Command("./flyinfer/flyinfer", args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig: syscall.SIGKILL,
@@ -102,6 +146,7 @@ func inferWrapper(w http.ResponseWriter, r *http.Request, params httprouter.Para
 	if err := cmd.Start(); err != nil {
 		logrus.Errorf("inferWrapper cmd.Start() failed: %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	err := cmd.Wait()
@@ -113,5 +158,30 @@ func inferWrapper(w http.ResponseWriter, r *http.Request, params httprouter.Para
 	var v interface{}
 	json.NewDecoder(jsonResult).Decode(&v)
 	prettyJson(w, v)
+
+}
+
+func weightLoadWrapper(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+	var args []string
+
+	args = append(args, params.ByName("channel"))
+
+	cmd := exec.Command("./weightLoad/weightLoad", args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Pdeathsig: syscall.SIGKILL,
+	}
+
+	if err := cmd.Start(); err != nil {
+		logrus.Errorf("weightLoadWrapper cmd.Start() failed: %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	err := cmd.Wait()
+	if err != nil {
+		logrus.Errorf("weightLoadWrapper cmd.Wait() failed: %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusOK)
 
 }
