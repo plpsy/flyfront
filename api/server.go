@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
@@ -94,7 +95,7 @@ func Inference(w http.ResponseWriter, r *http.Request, params httprouter.Params)
 	defer formFile.Close()
 
 	// 创建保存文件
-	path := "/tmp/infer.img"
+	path := "/tmp/infer.png"
 
 	os.Remove(path)
 
@@ -133,9 +134,19 @@ func prettyJson(w http.ResponseWriter, data interface{}) {
 func inferWrapper(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 	var args []string
 
-	args = append(args, params.ByName("channel"))
+	ch := params.ByName("channel")
 
-	cmd := exec.Command("./flyinfer/flyinfer", args...)
+	id, err := strconv.Atoi(ch)
+	logrus.Errorf("channel = %v, id = %d", ch, id)
+	if err != nil {
+		logrus.Errorf("channel = %v not allowed", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	args = append(args, "-i", ch, "-f", "/tmp/infer.png")
+	logrus.Errorf("args = %v", args)
+	cmd := exec.Command("/root/yolo3", args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig: syscall.SIGKILL,
 	}
@@ -148,13 +159,13 @@ func inferWrapper(w http.ResponseWriter, r *http.Request, params httprouter.Para
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	err := cmd.Wait()
+	logrus.Errorf("start done")
+	err = cmd.Wait()
 	if err != nil {
 		logrus.Errorf("inferWrapper cmd.Wait() failed: %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-
+	logrus.Errorf("wait done")
 	var v interface{}
 	json.NewDecoder(jsonResult).Decode(&v)
 	prettyJson(w, v)
