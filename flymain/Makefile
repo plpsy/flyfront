@@ -16,8 +16,8 @@ libfly.a : $(libfly-objects)
 	ar crv libfly.a *.o
 flymain : 
 	$(CC) -o flymain flyslice_cnn_api.c cJSON.c flymain.c
-yolo :
-	$(CC) -o yolo3 cJSON.c yolo_test.c
+yolo3 :
+	$(CC) -o yolo3 yolo_test.c
 
 clean:
 	rm -f *.o libfly.so flymain yolo3
